@@ -1508,6 +1508,27 @@ impl TestArgs {
             return Ok((src_files().chain(test_files()).collect(), None));
         }
 
+        let filter_args = test_filter.args();
+        let has_contract_or_test_filter = filter_args.test_pattern.is_some()
+            || filter_args.test_pattern_inverse.is_some()
+            || filter_args.contract_pattern.is_some()
+            || filter_args.contract_pattern_inverse.is_some();
+
+        // A path-only filter selects the test files by path alone, so the preliminary ABI-only
+        // compilation below has nothing left to decide and can be skipped entirely.
+        if !has_contract_or_test_filter
+            && test_filter.rerun_failures().is_none()
+            && symbolic_artifact_replay.is_none()
+        {
+            let files = src_files()
+                .chain(
+                    test_files()
+                        .filter(|path| !path.is_sol_test() || test_filter.matches_path(path)),
+                )
+                .collect();
+            return Ok((files, None));
+        }
+
         let mut project = config.create_project(config.cache, true)?;
         let sources = src_files()
             .chain(
@@ -1533,11 +1554,6 @@ impl TestArgs {
             TestFunctionMatcher::new(config, &inline_config, symbolic_artifact_replay);
         let paths = config.project_paths::<MultiCompilerLanguage>();
         let empty_filter = EmptyTestFilter::default();
-        let filter_args = test_filter.args();
-        let has_contract_or_test_filter = filter_args.test_pattern.is_some()
-            || filter_args.test_pattern_inverse.is_some()
-            || filter_args.contract_pattern.is_some()
-            || filter_args.contract_pattern_inverse.is_some();
 
         // `MultiContractRunner::build` strips the root prefix from artifact source paths so the
         // identifiers it constructs are project-relative. Match that here for the filter check
@@ -1668,7 +1684,8 @@ impl TestArgs {
 
         let compiler = ProjectCompiler::new()
             .dynamic_test_linking(config.dynamic_test_linking)
-            .quiet(shell::is_json() || self.junit);
+            .quiet(shell::is_json() || self.junit)
+            .no_warnings(config.no_warnings);
         let (output, selected_sources, inline_config) = if self.list {
             // Only the ABI is needed to list tests, so skip the full compile when possible.
             let compiler = if filter.args().path_pattern.is_some()
