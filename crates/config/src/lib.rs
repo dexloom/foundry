@@ -312,6 +312,8 @@ pub struct Config {
     /// Multiple etherscan api configs and their aliases
     #[serde(default, skip_serializing_if = "EtherscanConfigs::is_empty")]
     pub etherscan: EtherscanConfigs,
+    /// If true, skips displaying all compiler warnings and info messages in output.
+    pub no_warnings: bool,
     /// List of solidity error codes to always silence in the compiler output.
     pub ignored_error_codes: Vec<SolidityErrorCode>,
     /// List of file paths to ignore.
@@ -2603,6 +2605,7 @@ impl Default for Config {
             remappings: vec![],
             auto_detect_remappings: true,
             libraries: vec![],
+            no_warnings: false,
             ignored_error_codes: vec![
                 SolidityErrorCode::SpdxLicenseNotProvided,
                 SolidityErrorCode::ContractExceeds24576Bytes,
@@ -3989,6 +3992,7 @@ mod tests {
                 memory_limit = 134217728
                 names = false
                 no_storage_caching = false
+                no_warnings = false
                 no_rpc_rate_limit = false
                 offline = false
                 optimizer = true

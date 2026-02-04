@@ -224,14 +224,32 @@ impl TestArgs {
         config: &Config,
         test_filter: &ProjectPathsAwareFilter,
     ) -> Result<BTreeSet<PathBuf>> {
-        // An empty filter doesn't filter out anything.
-        // We can still optimize slightly by excluding scripts.
-        if test_filter.is_empty() {
-            return Ok(source_files_iter(&config.src, MultiCompilerLanguage::FILE_EXTENSIONS)
-                .chain(source_files_iter(&config.test, MultiCompilerLanguage::FILE_EXTENSIONS))
-                .collect());
+        // Always compile all src/ files (tests may depend on them via cheatcodes)
+        let mut sources: BTreeSet<PathBuf> =
+            source_files_iter(&config.src, MultiCompilerLanguage::FILE_EXTENSIONS).collect();
+
+        // If path_pattern is set, only compile test files that match the pattern.
+        // This avoids the expensive preliminary ABI-only compilation.
+        if let Some(path_pattern) = test_filter.args().path_pattern.as_ref() {
+            for test_file in
+                source_files_iter(&config.test, MultiCompilerLanguage::FILE_EXTENSIONS)
+            {
+                if path_pattern.is_match(&test_file) {
+                    sources.insert(test_file);
+                }
+            }
+            return Ok(sources);
         }
 
+        // If no path filter, check if other filters are set
+        if test_filter.is_empty() {
+            // No filters - compile all test files
+            sources.extend(source_files_iter(&config.test, MultiCompilerLanguage::FILE_EXTENSIONS));
+            return Ok(sources);
+        }
+
+        // Other filters (contract/test name patterns) require ABI inspection.
+        // Do preliminary compile to determine which test files have matching tests.
         let mut project = config.create_project(true, true)?;
         project.update_output_selection(|selection| {
             *selection = OutputSelection::common_output_selection(["abi".to_string()]);
@@ -278,6 +296,7 @@ impl TestArgs {
         let compiler = ProjectCompiler::new()
             .dynamic_test_linking(config.dynamic_test_linking)
             .quiet(shell::is_json() || self.junit)
+            .no_warnings(config.no_warnings)
             .files(self.get_sources_to_compile(&config, &filter)?);
         let output = compiler.compile(&project)?;
 

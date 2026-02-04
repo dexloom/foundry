@@ -105,6 +105,7 @@ impl BuildArgs {
             .print_names(self.names)
             .print_sizes(self.sizes)
             .ignore_eip_3860(self.ignore_eip_3860)
+            .no_warnings(config.no_warnings)
             .bail(!format_json);
 
         let mut output = compiler.compile(&project)?;
@@ -117,7 +118,10 @@ impl BuildArgs {
         }
 
         // Only run the `SolidityLinter` if lint on build and no compilation errors.
-        if config.lint.lint_on_build && !output.output().errors.iter().any(|e| e.is_error()) {
+        if config.lint.lint_on_build
+            && !config.no_warnings
+            && !output.output().errors.iter().any(|e| e.is_error())
+        {
             self.lint(&project, &config, self.paths.as_deref(), &mut output)
                 .wrap_err("Lint failed")?;
         }

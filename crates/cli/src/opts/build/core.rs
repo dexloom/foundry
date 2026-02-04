@@ -43,6 +43,11 @@ pub struct BuildOpts {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub libraries: Vec<String>,
 
+    /// Do not print any compiler warnings.
+    #[arg(long, help_heading = "Compiler options")]
+    #[serde(skip)]
+    pub no_warnings: bool,
+
     /// Ignore solc warnings by error code.
     #[arg(long, help_heading = "Compiler options", value_name = "ERROR_CODES")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -257,6 +262,10 @@ impl Provider for BuildOpts {
         if self.no_metadata {
             dict.insert("bytecode_hash".to_string(), "none".into());
             dict.insert("cbor_metadata".to_string(), false.into());
+        }
+
+        if self.no_warnings {
+            dict.insert("no_warnings".to_string(), true.into());
         }
 
         if self.force {

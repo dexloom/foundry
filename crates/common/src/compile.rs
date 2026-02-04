@@ -7,7 +7,8 @@ use comfy_table::{Cell, Color, Table, modifiers::UTF8_ROUND_CORNERS, presets::AS
 use eyre::Result;
 use foundry_block_explorers::contract::Metadata;
 use foundry_compilers::{
-    Artifact, Project, ProjectBuilder, ProjectCompileOutput, ProjectPathsConfig, SolcConfig,
+    Artifact, CompilationError as _, Project, ProjectBuilder, ProjectCompileOutput,
+    ProjectPathsConfig, SolcConfig,
     artifacts::{BytecodeObject, Contract, Source, remappings::Remapping},
     compilers::{
         Compiler,
@@ -62,6 +63,9 @@ pub struct ProjectCompiler {
 
     /// Whether to compile with dynamic linking tests and scripts.
     dynamic_test_linking: bool,
+
+    /// Whether to suppress compiler warnings and info from output.
+    no_warnings: bool,
 }
 
 impl Default for ProjectCompiler {
@@ -84,6 +88,7 @@ impl ProjectCompiler {
             ignore_eip_3860: false,
             files: Vec::new(),
             dynamic_test_linking: false,
+            no_warnings: false,
         }
     }
 
@@ -134,6 +139,13 @@ impl ProjectCompiler {
     #[inline]
     pub fn dynamic_test_linking(mut self, preprocess: bool) -> Self {
         self.dynamic_test_linking = preprocess;
+        self
+    }
+
+    /// Sets whether to suppress compiler warnings and info from output.
+    #[inline]
+    pub fn no_warnings(mut self, yes: bool) -> Self {
+        self.no_warnings = yes;
         self
     }
 
@@ -208,6 +220,18 @@ impl ProjectCompiler {
             if !shell::is_json() {
                 if output.is_unchanged() {
                     sh_println!("No files changed, compilation skipped")?;
+                } else if self.no_warnings {
+                    use yansi::Paint;
+                    if output.has_compiler_errors() {
+                        sh_println!("Compiler run {}:", "failed".red())?;
+                    } else {
+                        sh_println!("Compiler run {}!", "successful".green())?;
+                    }
+                    for err in &output.output().errors {
+                        if err.is_error() {
+                            sh_println!("\n{err}")?;
+                        }
+                    }
                 } else {
                     // print the compiler output / warnings
                     sh_println!("{output}")?;
