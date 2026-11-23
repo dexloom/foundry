@@ -91,7 +91,7 @@ toml_edit.workspace = true
 watchexec = "8.0"
 watchexec-events = "6.0"
 watchexec-signals = "5.0"
-clearscreen = "4.0"
+clearscreen = "5.0"
 evm-disassembler.workspace = true
 path-slash.workspace = true
 reqwest = { workspace = true, features = ["json"] }
@@ -99,12 +99,12 @@ url.workspace = true
 
 axum.workspace = true
 tower-http = { workspace = true, features = ["cors"] }
-opener = "0.8"
+opener = "0.9"
 
 # soldeer
 soldeer-commands.workspace = true
 soldeer-core.workspace = true
-quick-junit = "0.7.0"
+quick-junit = "0.8.0"
 tempfile.workspace = true
 
 [dev-dependencies]
